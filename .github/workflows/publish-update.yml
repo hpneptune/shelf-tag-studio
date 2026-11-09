@@ -1,0 +1,66 @@
+# Publishes a Shelf Tag Studio update into this repository, which is where the app downloads updates from.
+# It runs when any of these happen:
+#   - shelftag-github.zip is uploaded into the repository (Add file > Upload files): it's unpacked, then removed
+#   - a release is published with shelftag-github.zip attached
+#   - you click "Run workflow" on the Actions tab (uses a zip in the repository, or the latest release's zip)
+name: Publish update
+on:
+  push:
+    branches: [main]
+    paths: ['**.zip', '.github/workflows/publish-update.yml']
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: publish-update
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Unpack the update zip into the repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/rel /tmp/unz; mkdir -p /tmp/rel /tmp/unz
+          ZIP=""
+          # 1) a zip uploaded into the repository
+          IN_REPO=$(git ls-files '*.zip' | head -n 1 || true)
+          if [ "$EVENT" != "release" ] && [ -n "$IN_REPO" ]; then cp "$IN_REPO" /tmp/rel/; ZIP="/tmp/rel/$(basename "$IN_REPO")"; fi
+          # 2) the zip attached to the release (or to the latest release when run by hand)
+          if [ -z "$ZIP" ] && [ "$EVENT" != "push" ]; then
+            if [ -z "$TAG" ]; then TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName 2>/dev/null || true); fi
+            if [ -n "$TAG" ]; then
+              for i in 1 2 3 4 5 6; do
+                gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.zip' --dir /tmp/rel --clobber && break
+                echo "Waiting for the zip to finish uploading..."; sleep 10
+              done
+              ZIP=$(ls /tmp/rel/*.zip 2>/dev/null | head -n 1 || true)
+            fi
+          fi
+          if [ -z "$ZIP" ]; then
+            if [ "$EVENT" = "push" ]; then echo "No update zip in the repository, nothing to do."; exit 0; fi
+            echo "::error::No update zip found. Attach shelftag-github.zip to the release, or upload it into the repository."; exit 1
+          fi
+          unzip -q -o "$ZIP" -d /tmp/unz
+          VJ=$(find /tmp/unz -name version.json -not -path '*/__MACOSX/*' | head -n 1)
+          if [ -z "$VJ" ]; then echo "::error::$(basename "$ZIP") has no version.json. Use shelftag-github.zip."; exit 1; fi
+          SRC=$(dirname "$VJ")
+          VER=$(jq -r .version "$VJ")
+          if [ -n "$TAG" ] && [ "v$VER" != "$TAG" ] && [ "$VER" != "$TAG" ]; then echo "::warning::The zip is version $VER but the release is $TAG."; fi
+          (cd "$SRC" && tar --exclude=./.git --exclude=./.github -cf - .) | tar -xf -
+          # the zip itself isn't needed in the repository once it's unpacked
+          git ls-files '*.zip' | xargs -r git rm -q --
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Already up to date (version $VER)."; exit 0; fi
+          git commit -m "Shelf Tag Studio $VER"
+          git push origin HEAD:main
+          echo "Published version $VER"
