@@ -16,6 +16,7 @@
 <meta name="theme-color" content="#171e25" media="(prefers-color-scheme: dark)">
 <script src="libs/jspdf.umd.min.js" defer></script>
 <script src="libs/zxing.min.js" defer></script>
+<script src="libs/zxing-wasm-reader.js" defer></script>
 <style>
 @font-face{font-family:"Barlow";font-weight:400;font-display:swap;src:url(fonts/barlow-latin-400-normal.woff2) format("woff2")}
 @font-face{font-family:"Barlow";font-weight:600;font-display:swap;src:url(fonts/barlow-latin-600-normal.woff2) format("woff2")}
@@ -802,6 +803,13 @@ async function decodeImageFile(file){
     if("BarcodeDetector" in window){
       try{const bd=new BarcodeDetector({formats:["upc_a","upc_e","ean_13","ean_8","code_128"]});const r=await bd.detect(img);if(r.length)return r[0].rawValue;}catch(e){}
     }
+    if(await zwInit()){
+      const W0=img.naturalWidth,H0=img.naturalHeight,sc=Math.min(1,2600/Math.max(W0,H0));
+      const cv=document.createElement("canvas");cv.width=Math.round(W0*sc);cv.height=Math.round(H0*sc);
+      cv.getContext("2d",{willReadFrequently:true}).drawImage(img,0,0,cv.width,cv.height);
+      let t=await zwReadCanvas(cv);if(t)return t;
+      for(const d of [45,-45]){t=await zwReadCanvas(rotatedCanvas(cv,d));if(t)return t;}
+    }
     if(!window.ZXing)throw new Error("The barcode scanner library didn't load. Check the internet connection and reopen the page.");
     const Z=window.ZXing;
     const hints=new Map();
@@ -870,13 +878,16 @@ function updateTagCounter(){
 }
 function beep(){try{beepCtx=beepCtx||new (window.AudioContext||window.webkitAudioContext)();const o=beepCtx.createOscillator(),g=beepCtx.createGain();o.frequency.value=1650;g.gain.value=.08;o.connect(g);g.connect(beepCtx.destination);o.start();o.stop(beepCtx.currentTime+.09);}catch(e){}if(navigator.vibrate)try{navigator.vibrate(40);}catch(e){}}
 async function openScanner(cb){
-  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)||!window.ZXing){scanPhoto(cb);return;}
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)||!(window.ZXing||window.ZXingWASM)){scanPhoto(cb);return;}
+  const useW=await zwInit();
+  if(!useW&&!window.ZXing){scanPhoto(cb);return;}
   const wasLive=!!cam.stream;camStop(true);
   try{beepCtx=beepCtx||new (window.AudioContext||window.webkitAudioContext)();beepCtx.resume&&beepCtx.resume();}catch(e){}
-  const Z=window.ZXing,hints=new Map();
-  hints.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E,Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.CODE_128]);
-  hints.set(Z.DecodeHintType.TRY_HARDER,true);
-  const reader=new Z.BrowserMultiFormatReader(hints,150);
+  let reader=null,ownStream=null;
+  if(!useW){const Z=window.ZXing,hints=new Map();
+    hints.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E,Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.CODE_128]);
+    hints.set(Z.DecodeHintType.TRY_HARDER,true);
+    reader=new Z.BrowserMultiFormatReader(hints,150);}
   const ov=document.createElement("div");ov.className="scanner";
   const quick=!cb&&scanMode==="tag";
   ov.innerHTML=`<video playsinline muted autoplay></video><div class="reticle"></div>
@@ -884,7 +895,7 @@ async function openScanner(cb){
     <div class="sc-bot"><button class="btn" id="scPhoto">Use photo</button><button class="btn" id="scType">Type UPC</button><button class="btn tag" id="scDone">Done</button></div>`;
   document.body.appendChild(ov);
   let closed=false,last="",lastT=0,count=0;
-  const close=()=>{if(closed)return;closed=true;try{reader.reset();}catch(e){}ov.remove();if(wasLive||!$("#v-scan").hidden)setTimeout(camStart,150);};
+  const close=()=>{if(closed)return;closed=true;try{reader&&reader.reset();}catch(e){}if(ownStream)ownStream.getTracks().forEach(t=>t.stop());ov.remove();if(wasLive||!$("#v-scan").hidden)setTimeout(camStart,150);};
   ov.querySelector("#scDone").onclick=close;
   ov.querySelector("#scPhoto").onclick=()=>{close();scanPhoto(cb);};
   ov.querySelector("#scType").onclick=()=>{close();const sh=openSheet(`<div class="stack"><h3>Type a UPC</h3><input id="tUPC" class="mono" inputmode="numeric" placeholder="UPC digits" enterkeyhint="go"><button class="btn tag" id="tGo">Look up</button></div>`);
@@ -897,14 +908,55 @@ async function openScanner(cb){
     }
     close();cb?cb(t):handleScan(t);
   };
+  const video=ov.querySelector("video");
   try{
-    await reader.decodeFromConstraints({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}},ov.querySelector("video"),(res)=>{if(res&&!closed)onCode(res.getText());});
+    if(useW){
+      ownStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}});
+      if(closed){ownStream.getTracks().forEach(t=>t.stop());return;}
+      video.setAttribute("playsinline","");video.muted=true;video.srcObject=ownStream;try{await video.play();}catch(e){}
+      const cv=document.createElement("canvas"),ctx=cv.getContext("2d",{willReadFrequently:true});let n=0;
+      while(!closed){
+        await new Promise(r=>setTimeout(r,60));
+        if(closed||!video.videoWidth||video.readyState<2)continue;
+        const W=video.videoWidth,H=video.videoHeight,sc=Math.min(1,1920/Math.max(W,H));
+        cv.width=Math.round(W*sc);cv.height=Math.round(H*sc);ctx.drawImage(video,0,0,cv.width,cv.height);
+        let t=await zwReadCanvas(cv);
+        if(!t&&n%4===1)t=await zwReadCanvas(rotatedCanvas(cv,45));
+        if(!t&&n%4===3)t=await zwReadCanvas(rotatedCanvas(cv,-45));
+        n++;
+        if(t&&!closed)onCode(t);
+      }
+    }else{
+      await reader.decodeFromConstraints({audio:false,video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}}},video,(res)=>{if(res&&!closed)onCode(res.getText());});
+    }
   }catch(e){
     close();toast("The camera isn't available, so the photo scanner opened instead.",3500);scanPhoto(cb);
   }
 }
 $("#navScan").onclick=()=>{if(!S.items.length){toast("Load your pricebook first");showView("data");return;}showView("scan");};
 
+/* ---- barcode reading engine ----
+   zxing-cpp compiled to WebAssembly reads small, curved and slightly blurry barcodes (UPC-E on tins,
+   tiny labels) that the older JavaScript reader misses. The JavaScript reader stays as a backup. */
+const ZW_WASM="libs/zxing_reader.wasm";
+const ZW_OPTS={formats:["EANUPC","Code128"],tryHarder:true,tryRotate:true,tryInvert:false,tryDownscale:true,maxNumberOfSymbols:1};
+let zwReady=null;
+function zwInit(){
+  if(zwReady)return zwReady;
+  zwReady=(async()=>{
+    if(document.readyState==="loading")await new Promise(r=>document.addEventListener("DOMContentLoaded",r,{once:true}));
+    if(!window.ZXingWASM)return false;
+    try{await ZXingWASM.prepareZXingModule({overrides:{locateFile:(p,pre)=>p.endsWith(".wasm")?new URL(ZW_WASM,location.href).href:pre+p},fireImmediately:true});return true;}
+    catch(e){console.warn("WebAssembly barcode reader unavailable; using the JavaScript reader",e);return false;}
+  })();
+  return zwReady;
+}
+async function zwReadCanvas(cv){
+  try{
+    const r=await ZXingWASM.readBarcodes(cv.getContext("2d",{willReadFrequently:true}).getImageData(0,0,cv.width,cv.height),ZW_OPTS);
+    const x=r.find(x=>x.text&&x.isValid!==false);return x?x.text:null;
+  }catch(e){return null;}
+}
 /* Barcode at any angle: ZXing reads straight and upside-down bars natively; TRY_HARDER adds the
    90° turn; for slanted barcodes we also try the image turned 45° each way. */
 function rotatedCanvas(srcCanvas,deg){
@@ -927,7 +979,7 @@ function camHints(){const Z=window.ZXing,h=new Map();h.set(Z.DecodeHintType.POSS
 function camShowStart(msg){$("#camStart").hidden=false;$("#camFrame").hidden=true;$("#camSelect").hidden=true;if(msg)$("#camMsg").textContent=msg;}
 async function camStart(){
   if(cam.stream||cam.starting||$("#v-scan").hidden)return;
-  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)||!window.ZXing){camShowStart("The live camera isn't available in this browser. Scan from a photo instead.");$("#camStartBtn").hidden=true;return;}
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)||!(window.ZXing||window.ZXingWASM)){camShowStart("The live camera isn't available in this browser. Scan from a photo instead.");$("#camStartBtn").hidden=true;return;}
   cam.starting=true;
   try{beepCtx=beepCtx||new (window.AudioContext||window.webkitAudioContext)();beepCtx.resume&&beepCtx.resume();}catch(e){}
   const res={width:{ideal:1920},height:{ideal:1080}};
@@ -946,21 +998,32 @@ async function camStart(){
   }finally{cam.starting=false;}
 }
 async function camLoop(){
-  const Z=window.ZXing,id={};cam.loopId=id;
-  const reader=new Z.MultiFormatReader(),h=camHints();reader.setHints(h);
+  const id={};cam.loopId=id;
+  const useW=await zwInit();
+  if(cam.loopId!==id)return;
+  const Z=window.ZXing,reader=!useW&&Z?new Z.MultiFormatReader():null;if(reader)reader.setHints(camHints());
+  if(!useW&&!reader)return;
   const v=$("#camVideo"),cv=document.createElement("canvas"),ctx=cv.getContext("2d",{willReadFrequently:true});
   let n=0;
   while(cam.loopId===id){
-    await new Promise(r=>setTimeout(r,80));
+    await new Promise(r=>setTimeout(r,useW?50:80));
     if(cam.loopId!==id)break;
     if(!v.videoWidth||v.readyState<2||$("#sheetHost").children.length)continue;
-    const W=v.videoWidth,H=v.videoHeight,sc=Math.min(1,960/Math.max(W,H));
+    // the WebAssembly reader gets the full-size frame, so small barcodes keep their detail
+    const W=v.videoWidth,H=v.videoHeight,sc=Math.min(1,(useW?1920:960)/Math.max(W,H));
     cv.width=Math.round(W*sc);cv.height=Math.round(H*sc);ctx.drawImage(v,0,0,cv.width,cv.height);
-    // every pass: straight, upside down and sideways; every other pass also 45° each way
-    let t=decodeCanvas(reader,cv,true);
-    if(!t&&n%2===0){const r=rotatedCanvas(cv,45);t=decodeCanvas(reader,r,true);}
+    let t=null;
+    if(useW){
+      // every pass: any 90° turn; every other pass also 45° one way or the other
+      t=await zwReadCanvas(cv);
+      if(!t&&n%4===1)t=await zwReadCanvas(rotatedCanvas(cv,45));
+      if(!t&&n%4===3)t=await zwReadCanvas(rotatedCanvas(cv,-45));
+    }else{
+      t=decodeCanvas(reader,cv,true);
+      if(!t&&n%2===0){const r=rotatedCanvas(cv,45);t=decodeCanvas(reader,r,true);}
+    }
     n++;
-    if(t)onLiveCode(t);
+    if(t&&cam.loopId===id)onLiveCode(t);
   }
 }
 function camStop(keepMsg){
@@ -2642,7 +2705,7 @@ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catc
 document.addEventListener("pointerdown",function unlock(){try{beepCtx=beepCtx||new (window.AudioContext||window.webkitAudioContext)();beepCtx.resume();loadFullSound();}catch(e){}document.removeEventListener("pointerdown",unlock,true);},true);
 /* ============================== boot ============================== */
 /* ---- launch screen ---- */
-const APP_VERSION="2026.11.08h"; // stamped by the release script; must match version.json
+const APP_VERSION="2026.11.08i"; // stamped by the release script; must match version.json
 const SPL=$("#splash");
 function splash(text,frac,detail){
   if(!SPL)return;
@@ -2738,7 +2801,7 @@ async function updWorker(){
     if(w&&w.state!=="activated")await new Promise(res=>{const t=setTimeout(res,3000);w.addEventListener("statechange",()=>{if(w.state==="activated"||w.state==="redundant"){clearTimeout(t);res();}});});
   }catch(e){}
 }
-const EXT_TYPE={html:"text/html; charset=utf-8",js:"text/javascript; charset=utf-8",css:"text/css; charset=utf-8",csv:"text/csv; charset=utf-8",json:"application/json",webmanifest:"application/manifest+json",png:"image/png",jpg:"image/jpeg",svg:"image/svg+xml",woff2:"font/woff2",woff:"font/woff",wav:"audio/wav",txt:"text/plain; charset=utf-8"};
+const EXT_TYPE={wasm:"application/wasm",html:"text/html; charset=utf-8",js:"text/javascript; charset=utf-8",css:"text/css; charset=utf-8",csv:"text/csv; charset=utf-8",json:"application/json",webmanifest:"application/manifest+json",png:"image/png",jpg:"image/jpeg",svg:"image/svg+xml",woff2:"font/woff2",woff:"font/woff",wav:"audio/wav",txt:"text/plain; charset=utf-8"};
 const hexOf=buf=>[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
 async function updDownload(f,onBytes,src){
   let last=null;
@@ -2961,7 +3024,7 @@ document.addEventListener("visibilitychange",async()=>{
   {const a=await loadBuiltinLinks();const b=(S.items.length&&master)?(await autoLink(true))||0:0;
    if(a||b){indexItems();applyFilter();updateDataInfo();if(a+b>20)toast(`${(a+b).toLocaleString()} items linked to their barcodes`,4000);}}
   supplier=(await idb.get("supplier"))||null;renderSupplierCard();
-  updateDataInfo();updInfo();pcSrcInfo();
+  updateDataInfo();updInfo();pcSrcInfo();zwInit();
   splash("Ready",1,"Version "+APP_VERSION);
  }catch(err){console.error(err);}
  finally{splashHide();}

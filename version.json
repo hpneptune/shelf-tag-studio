@@ -1,6 +1,6 @@
 {
- "version": "2026.11.08h",
- "built": "2026-11-08T19:46:13-05:00",
+ "version": "2026.11.08i",
+ "built": "2026-11-08T21:35:13-05:00",
  "files": [
   {
    "p": "apple-touch-icon-precomposed.png",
@@ -14,8 +14,8 @@
   },
   {
    "p": "index.html",
-   "s": 437780,
-   "h": "fe6644c6efd59276c490b56208890556a8592ce7d820e8843e37c07dad627031"
+   "s": 441301,
+   "h": "e245822bf531e40bb30b8bdb658a61f5e7fd9db3595375d9dcdad997923b8a60"
   },
   {
    "p": "manifest.webmanifest",
@@ -121,9 +121,24 @@
    "h": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99"
   },
   {
+   "p": "libs/zxing-wasm-LICENSE.txt",
+   "s": 1068,
+   "h": "fb506e4ade12d7a9efa67c9d76a9a28c8e15d347ca49a69e48e29b40b34ad2ab"
+  },
+  {
+   "p": "libs/zxing-wasm-reader.js",
+   "s": 37951,
+   "h": "ffd72d59d54082194f7c086b384dcd930bdeb0c5b39fbb13779694e69bb0d344"
+  },
+  {
    "p": "libs/zxing.min.js",
    "s": 336008,
    "h": "d7cc8f69dd70bdcf3ac00c9ae572bf2acb9f4132ba379c72df842e4db918652d"
+  },
+  {
+   "p": "libs/zxing_reader.wasm",
+   "s": 946860,
+   "h": "5003fb4b88c4fbd1fd518a2fd8c8ad365c519e183a08c03a322dddfea3cea84e"
   }
  ]
 }
