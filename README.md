@@ -1,6 +1,6 @@
 # Shelf Tag Studio updates
 
-Version 2026.11.08h. The Shelf Tag Studio app downloads its updates from this folder.
+Version 2026.11.08i. The Shelf Tag Studio app downloads its updates from this folder.
 
 - Put the update address (Data > App updates > Update address) to this repository's address.
 - To publish a new version, upload the new files over these ones. Keep `version.json`: it lists every file
