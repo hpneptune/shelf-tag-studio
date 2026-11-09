@@ -1,0 +1,129 @@
+{
+ "version": "2026.11.08h",
+ "built": "2026-11-08T19:46:13-05:00",
+ "files": [
+  {
+   "p": "apple-touch-icon-precomposed.png",
+   "s": 8166,
+   "h": "21f3ae4b74c31fb60c7568760d017e3e516bcc9ef8277834580672d81539ca58"
+  },
+  {
+   "p": "apple-touch-icon.png",
+   "s": 8166,
+   "h": "21f3ae4b74c31fb60c7568760d017e3e516bcc9ef8277834580672d81539ca58"
+  },
+  {
+   "p": "index.html",
+   "s": 437780,
+   "h": "fe6644c6efd59276c490b56208890556a8592ce7d820e8843e37c07dad627031"
+  },
+  {
+   "p": "manifest.webmanifest",
+   "s": 623,
+   "h": "a08a4835e07f02ab9702b4e34e3b0ace5289de4cb260802d35c8983c748a0346"
+  },
+  {
+   "p": "data/barcode-links.csv",
+   "s": 567397,
+   "h": "1af773505c83065d60697107bac5b157b9af45c7c9bc4872fda9acfcf23e81e7",
+   "o": 1
+  },
+  {
+   "p": "data/itemsales_by_year.csv",
+   "s": 995928,
+   "h": "839816b769a2f476b0fc1b02f52dfa652002fa1bcc7a1ff02b16dfea117f0386",
+   "o": 1
+  },
+  {
+   "p": "data/pricebook14319.csv",
+   "s": 2374928,
+   "h": "2a6fcedbcb6374dae8716c2945c65675daccc0d6e9e3ca5a45178f81af465570",
+   "o": 1
+  },
+  {
+   "p": "fonts/barlow-condensed-latin-700-normal.woff2",
+   "s": 22444,
+   "h": "3787a5a419171630e6890cfa47c4da067474d005cd0ff8dc11ec090fdc3ee2b8"
+  },
+  {
+   "p": "fonts/barlow-condensed-latin-800-normal.woff2",
+   "s": 22464,
+   "h": "2515494e8cc2ca07c86ea78766cfa104b796aa6ed5d66821c01d51dbb0b52bce"
+  },
+  {
+   "p": "fonts/barlow-latin-400-normal.woff2",
+   "s": 22196,
+   "h": "b0a8ad37ac45f5fb22ced461576db72e44e295107aad7a9c8a7a4bad728fd03b"
+  },
+  {
+   "p": "fonts/barlow-latin-600-normal.woff2",
+   "s": 22772,
+   "h": "4b52ddd4836b592df0e4832b8286956883cdc651b015126bdd18f184b7f90cc3"
+  },
+  {
+   "p": "fonts/barlow-latin-700-normal.woff2",
+   "s": 22788,
+   "h": "2d797dd8b35dcb3413e1af9d7052b3f4f8c341a147cdcb01f4f06af80db53289"
+  },
+  {
+   "p": "fonts/ibm-plex-mono-latin-500-normal.woff2",
+   "s": 14888,
+   "h": "01d285447409c8a588692162439a038b8cbd7871309ee20267b0d2d91c6e8e22"
+  },
+  {
+   "p": "icons/apple-touch-icon.png",
+   "s": 8166,
+   "h": "21f3ae4b74c31fb60c7568760d017e3e516bcc9ef8277834580672d81539ca58"
+  },
+  {
+   "p": "icons/favicon-32.png",
+   "s": 987,
+   "h": "bd9d9882ecdd5ba75b4a7526f43cc00bb2621eee24f095102ff36225e02654fb"
+  },
+  {
+   "p": "icons/icon-192.png",
+   "s": 8541,
+   "h": "c6e8ed2e10f04bb2bef29de5952b1796d209f23a1f7d304cef4393361527dc5e"
+  },
+  {
+   "p": "icons/icon-512.png",
+   "s": 20948,
+   "h": "28811262e27ffe7afd24e795749c53060523461376000038d2c0feed3e455448"
+  },
+  {
+   "p": "icons/maskable-512.png",
+   "s": 19909,
+   "h": "ff1ea9dfa1537902b58af9a6b181ca86ed4b0311fdfca827ad9ed32c5fdaa565"
+  },
+  {
+   "p": "icons/preview.png",
+   "s": 10587,
+   "h": "34eb3c78d8c9634d144cbd9f8ecc64947684f5e4ff422074c8e6cb675387b62e"
+  },
+  {
+   "p": "libs/jspdf.umd.min.js",
+   "s": 364463,
+   "h": "98ccf17aa10c20bb1301762618fcc9b6ab3a4e7f26b6071d64d0b41154df3875"
+  },
+  {
+   "p": "libs/pdf.min.js",
+   "s": 320004,
+   "h": "5b5799e6f8c680663207ac5b42ee14eed2a406fa7af48f50c154f0c0b1566946"
+  },
+  {
+   "p": "libs/pdf.worker.min.js",
+   "s": 1087212,
+   "h": "feabdf309770ed24bba31a5467836cdc8cf639c705af27d52b585b041bb8527b"
+  },
+  {
+   "p": "libs/xlsx.full.min.js",
+   "s": 881727,
+   "h": "c9506197caf809a075b6dee1da0d36fb19da7158ffe8a88e7b0c96c5d8623c99"
+  },
+  {
+   "p": "libs/zxing.min.js",
+   "s": 336008,
+   "h": "d7cc8f69dd70bdcf3ac00c9ae572bf2acb9f4132ba379c72df842e4db918652d"
+  }
+ ]
+}
